@@ -42,6 +42,8 @@ function processFile(filename, arrayBuffer, enableEncryption) {
         let cssFile;
         let skinFolder = false;
 
+        console.log("Processing file:", filename);
+
         if (filename.endsWith('.bdi')) {
             cssFile = zip.file("skin/res/default.css");
             skinFolder = true;
@@ -66,19 +68,20 @@ function processFile(filename, arrayBuffer, enableEncryption) {
             modifiedCss = modifiedCss.replace(/\.ogg/g, '.aiff');
             modifiedCss = modifiedCss.replace(/NM_IMG=abj,1/g, 'NM_IMG=acand,1');
             newFilename = filename.replace('.bds', '.bdi');
-
             zip.folder("skin").folder("res").file("default.css", modifiedCss);
             zip.remove("res");
         } else if (filename.endsWith('.bdi')) {
             modifiedCss = modifiedCss.replace(/\.aiff/g, '.ogg');
             modifiedCss = modifiedCss.replace(/NM_IMG=acand,1/g, 'NM_IMG=abj,1');
             newFilename = filename.replace('.bdi', '.bds');
-
             zip.folder("res").file("default.css", modifiedCss);
             zip.remove("skin");
         } else {
+            console.error("Unsupported file type:", filename);
             throw new Error("不支持的文件类型: " + filename);
         }
+
+        console.log("Generated newFilename:", newFilename);
 
         if (!newFilename) {
             throw new Error("无法生成新的文件名。");
