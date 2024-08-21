@@ -6,7 +6,7 @@ document.getElementById('uploadButton').addEventListener('click', function() {
     const fileInput = document.getElementById('fileInput');
     const file = fileInput.files[0];
     const enableEncryption = document.getElementById('encryptCheckbox').checked;
-    const isStickerBasePackage = document.getElementById('stickerCheckbox').checked;
+    const isStickerPackage = document.getElementById('stickerCheckbox').checked;
     const statusElement = document.getElementById('status');
     const progressElement = document.getElementById('progress');
     const outputElement = document.getElementById('output');
@@ -20,7 +20,7 @@ document.getElementById('uploadButton').addEventListener('click', function() {
 
     reader.onload = function(e) {
         const arrayBuffer = e.target.result;
-        processFile(file.name, arrayBuffer, enableEncryption, isStickerBasePackage);
+        processFile(file.name, arrayBuffer, enableEncryption, isStickerPackage);
     };
 
     reader.onprogress = function(e) {
@@ -33,7 +33,7 @@ document.getElementById('uploadButton').addEventListener('click', function() {
     reader.readAsArrayBuffer(file);
 });
 
-function processFile(filename, arrayBuffer, enableEncryption, isStickerBasePackage) {
+function processFile(filename, arrayBuffer, enableEncryption, isStickerPackage) {
     const statusElement = document.getElementById('status');
     const progressElement = document.getElementById('progress');
     const zip = new JSZip();
@@ -45,46 +45,10 @@ function processFile(filename, arrayBuffer, enableEncryption, isStickerBasePacka
 
         if (filename.endsWith('.bdi')) {
             newFilename = filename.replace('.bdi', '.bds');
-            if (isStickerBasePackage) {
-                // 贴纸底包：将 skin/ 下的所有文件和文件夹移动到根目录
-                const skinFolder = zip.folder("skin");
-                if (skinFolder) {
-                    skinFolder.forEach(function(relativePath, file) {
-                        const newPath = relativePath.replace(/^skin\//, ''); // 移除 "skin/" 前缀
-                        tasks.push(
-                            file.async("uint8array").then(function(content) {
-                                zip.file(newPath, content);
-                                zip.remove("skin/" + relativePath);
-                            })
-                        );
-                    });
-                }
-            } else {
-                // 普通包处理逻辑 (如适用)
-            }
-
+            tasks = handleBDItoBDS(zip, isStickerPackage);
         } else if (filename.endsWith('.bds')) {
             newFilename = filename.replace('.bds', '.bdi');
-            if (isStickerBasePackage) {
-                // 贴纸底包：将根目录下的所有文件和文件夹移动到 skin/ 目录
-                const rootFiles = Object.keys(contents.files);
-                rootFiles.forEach(function(filePath) {
-                    if (!filePath.startsWith("skin/") && !contents.files[filePath].dir) {
-                        const newPath = "skin/" + filePath;
-                        const file = zip.file(filePath);
-                        if (file) {
-                            tasks.push(
-                                file.async("uint8array").then(function(content) {
-                                    zip.file(newPath, content);
-                                    zip.remove(filePath);
-                                })
-                            );
-                        }
-                    }
-                });
-            } else {
-                // 普通包处理逻辑 (如适用)
-            }
+            tasks = handleBDStoBDI(zip, isStickerPackage);
         } else {
             console.error("Unsupported file type:", filename);
             throw new Error("不支持的文件类型: " + filename);
@@ -117,6 +81,153 @@ function processFile(filename, arrayBuffer, enableEncryption, isStickerBasePacka
         statusElement.textContent = '处理文件时出错。';
         progressElement.classList.add('hidden');
     });
+}
+
+function handleBDItoBDS(zip, isStickerPackage) {
+    let tasks = [];
+    
+    if (isStickerPackage) {
+        // 处理贴纸底包转换
+        tasks.push(updateInfoTxt(zip, "skin/Info.txt", "SupportPlatform=SWIA", "SupportPlatform=I", "AtomSkinName=light,dark"));
+        tasks.push(updateTilFiles(zip, "skin/light/skin/res/abj.til", updateTilForBDS));
+        tasks.push(updateTilFiles(zip, "skin/dark/skin/res/abj.til", updateTilForBDS));
+
+        const skinFolder = zip.folder("skin");
+        if (skinFolder) {
+            skinFolder.forEach(function(relativePath, file) {
+                const newPath = relativePath.replace(/^skin\/([^\/]+)\/skin\//, '$1/');
+                tasks.push(
+                    file.async("uint8array").then(function(content) {
+                        zip.file(newPath, content);
+                        zip.remove("skin/" + relativePath);
+                    })
+                );
+            });
+        }
+    } else {
+        // 将 skin/ 下的所有文件和文件夹移动到 res/
+        const skinFolder = zip.folder("skin");
+        if (skinFolder) {
+            skinFolder.forEach(function(relativePath, file) {
+                const newPath = "res/" + relativePath;
+                tasks.push(
+                    file.async("uint8array").then(function(content) {
+                        zip.file(newPath, content);
+                        zip.remove("skin/" + relativePath);
+                    })
+                );
+            });
+        }
+    }
+
+    return tasks;
+}
+
+function handleBDStoBDI(zip, isStickerPackage) {
+    let tasks = [];
+    
+    if (isStickerPackage) {
+        // 处理贴纸底包转换
+        tasks.push(updateInfoTxt(zip, "Info.txt", "SupportPlatform=I", "SupportPlatform=SWIA", "", "AtomSkinName=light,dark"));
+        tasks.push(updateTilFiles(zip, "light/res/abj.til", updateTilForBDI));
+        tasks.push(updateTilFiles(zip, "dark/res/abj.til", updateTilForBDI));
+
+        zip.forEach(function(relativePath, file) {
+            if (!relativePath.startsWith("skin/")) {
+                const newPath = "skin/" + relativePath.replace(/^([^\/]+)\//, '$1/skin/');
+                tasks.push(
+                    file.async("uint8array").then(function(content) {
+                        zip.file(newPath, content);
+                        zip.remove(relativePath);
+                    })
+                );
+            }
+        });
+    } else {
+        // 将 res/ 下的所有文件和文件夹移动到 skin/res/
+        const resFolder = zip.folder("res");
+        if (resFolder) {
+            resFolder.forEach(function(relativePath, file) {
+                const newPath = "skin/res/" + relativePath;
+                tasks.push(
+                    file.async("uint8array").then(function(content) {
+                        zip.file(newPath, content);
+                        zip.remove("res/" + relativePath);
+                    })
+                );
+            });
+        }
+    }
+
+    return tasks;
+}
+
+function updateInfoTxt(zip, path, oldPlatform, newPlatform, removeLine, addLine) {
+    const infoFile = zip.file(path);
+    if (!infoFile) {
+        return Promise.resolve(); // 如果没有 Info.txt 文件，跳过
+    }
+
+    return infoFile.async("string").then(function(content) {
+        let updatedContent = content.replace(oldPlatform, newPlatform);
+        if (removeLine) {
+            updatedContent = updatedContent.replace(removeLine, '');
+        }
+        if (addLine) {
+            updatedContent += `\n${addLine}`;
+        }
+        zip.file(path, updatedContent);
+    });
+}
+
+function updateTilFiles(zip, path, updateTilContent) {
+    const tilFile = zip.file(path);
+    if (!tilFile) {
+        return Promise.resolve(); // 如果没有 til 文件，跳过
+    }
+
+    return tilFile.async("string").then(function(content) {
+        const updatedContent = updateTilContent(content);
+        zip.file(path, updatedContent);
+    });
+}
+
+function updateTilForBDS(content) {
+    return content.replace(
+        `[IMG1]\nSOURCE_RECT=0,0,0,0`,
+        `[IMG1]\nSOURCE_RECT=0,70,1080,109`
+    ).replace(
+        `[IMG2]\nSOURCE_RECT=0,0,0,0`,
+        `[IMG2]\nSOURCE_RECT=0,100,1080,541`
+    ).replace(
+        `[IMG3]\nSOURCE_RECT=0,0,1080,820`,
+        `[IMG3]\nSOURCE_RECT=0,179,1080,595`
+    ).replace(
+        `[IMG4]\nSOURCE_RECT=0,0,0,0`,
+        `[IMG4]\nSOURCE_RECT=0,0,1080,70`
+    ).replace(
+        `[IMG5]\nSOURCE_RECT=0,179,1080,641`,
+        `[IMG5]\nSOURCE_RECT=0,179,1080,595`
+    );
+}
+
+function updateTilForBDI(content) {
+    return content.replace(
+        `[IMG1]\nSOURCE_RECT=0,70,1080,109`,
+        `[IMG1]\nSOURCE_RECT=0,0,0,0`
+    ).replace(
+        `[IMG2]\nSOURCE_RECT=0,100,1080,541`,
+        `[IMG2]\nSOURCE_RECT=0,0,0,0`
+    ).replace(
+        `[IMG3]\nSOURCE_RECT=0,179,1080,595`,
+        `[IMG3]\nSOURCE_RECT=0,0,1080,820`
+    ).replace(
+        `[IMG4]\nSOURCE_RECT=0,0,1080,70`,
+        `[IMG4]\nSOURCE_RECT=0,0,0,0`
+    ).replace(
+        `[IMG5]\nSOURCE_RECT=0,179,1080,595`,
+        `[IMG5]\nSOURCE_RECT=0,179,1080,641`
+    );
 }
 
 function modifyZipFile(data, filename) {
