@@ -95,7 +95,8 @@ function handleBDItoBDS(zip, isStickerPackage) {
         const skinFolder = zip.folder("skin");
         if (skinFolder) {
             skinFolder.forEach(function(relativePath, file) {
-                const newPath = relativePath.replace(/^skin\/([^\/]+)\/skin\//, '$1/');
+                // 正确转换路径: 移除中间的 "skin/" 段
+                const newPath = relativePath.replace(/^([^\/]+)\/skin\//, '$1/');
                 tasks.push(
                     file.async("uint8array").then(function(content) {
                         zip.file(newPath, content);
