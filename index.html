@@ -10,9 +10,12 @@
     <h1>文件处理器</h1>
     <input type="file" id="fileInput" accept=".bds,.bdi">
     <label>
-        <input type="checkbox" id="encryptCheckbox"> 启用输出文件加密
+        <input type="checkbox" id="encryptCheckbox"> 启用伪加密
     </label>
     <button id="uploadButton" disabled>上传并处理</button>
+    
+    <div id="status" class="hidden">准备中...</div>
+    <div id="progress" class="hidden"></div>
     <div id="output"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
