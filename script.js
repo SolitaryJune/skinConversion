@@ -45,59 +45,58 @@ function processFile(filename, arrayBuffer, enableEncryption, isStickerBasePacka
 
         if (filename.endsWith('.bdi')) {
             newFilename = filename.replace('.bdi', '.bds');
-            const skinFolder = zip.folder("skin");
-
-            if (!skinFolder) {
-                throw new Error("skin 文件夹不存在。");
-            }
-
             if (isStickerBasePackage) {
                 // 贴纸底包：将 skin/ 下的所有文件和文件夹移动到根目录
-                skinFolder.forEach(function(relativePath, file) {
-                    const newPath = relativePath;
-                    tasks.push(
-                        file.async("uint8array").then(function(content) {
-                            zip.file(newPath, content);
-                            zip.remove("skin/" + relativePath);
-                        })
-                    );
-                });
+                const skinFolder = zip.folder("skin");
+                if (skinFolder) {
+                    skinFolder.forEach(function(relativePath, file) {
+                        const newPath = relativePath;
+                        tasks.push(
+                            file.async("uint8array").then(function(content) {
+                                zip.file(newPath, content);
+                                zip.remove("skin/" + relativePath);
+                            })
+                        );
+                    });
+                }
             } else {
                 // 普通包：将 skin/ 下的所有文件和文件夹移动到 res/
-                skinFolder.forEach(function(relativePath, file) {
-                    const newPath = "res/" + relativePath;
-                    tasks.push(
-                        file.async("uint8array").then(function(content) {
-                            zip.file(newPath, content);
-                            zip.remove("skin/" + relativePath);
-                        })
-                    );
-                });
-
-                // 修改 Info.txt
-                const infoFile = zip.file("skin/Info.txt");
-                if (infoFile) {
-                    tasks.push(
-                        infoFile.async("string").then(function(content) {
-                            content = content.replace("SupportPlatform=SWIA", "SupportPlatform=I");
-                            content = content.replace(/AtomSkinName=light,dark\s*/, "");
-                            zip.file("res/Info.txt", content);
-                            zip.remove("skin/Info.txt");
-                        })
-                    );
-                }
-
-                // 修改 abj.til 文件
-                const abjTilPaths = [
-                    "skin/light/skin/res/abj.til",
-                    "skin/dark/skin/res/abj.til"
-                ];
-                abjTilPaths.forEach(function(path) {
-                    const abjTilFile = zip.file(path);
-                    if (abjTilFile) {
+                const skinFolder = zip.folder("skin");
+                if (skinFolder) {
+                    skinFolder.forEach(function(relativePath, file) {
+                        const newPath = "res/" + relativePath;
                         tasks.push(
-                            abjTilFile.async("string").then(function(content) {
-                                content = content.replace(`[IMG1]
+                            file.async("uint8array").then(function(content) {
+                                zip.file(newPath, content);
+                                zip.remove("skin/" + relativePath);
+                            })
+                        );
+                    });
+
+                    // 修改 Info.txt
+                    const infoFile = zip.file("skin/Info.txt");
+                    if (infoFile) {
+                        tasks.push(
+                            infoFile.async("string").then(function(content) {
+                                content = content.replace("SupportPlatform=SWIA", "SupportPlatform=I");
+                                content = content.replace(/AtomSkinName=light,dark\s*/, "");
+                                zip.file("res/Info.txt", content);
+                                zip.remove("skin/Info.txt");
+                            })
+                        );
+                    }
+
+                    // 修改 abj.til 文件
+                    const abjTilPaths = [
+                        "skin/light/skin/res/abj.til",
+                        "skin/dark/skin/res/abj.til"
+                    ];
+                    abjTilPaths.forEach(function(path) {
+                        const abjTilFile = zip.file(path);
+                        if (abjTilFile) {
+                            tasks.push(
+                                abjTilFile.async("string").then(function(content) {
+                                    content = content.replace(`[IMG1]
 SOURCE_RECT=0,0,0,0
 
 [IMG2]
@@ -136,71 +135,74 @@ SOURCE_RECT=0,0,1080,70
 
 [IMG7]
 SOURCE_RECT=0,70,1080,109`);
-                                zip.file(path.replace("skin/", "res/"), content);
-                                zip.remove(path);
-                            })
-                        );
-                    }
-                });
+                                    zip.file(path.replace("skin/", "res/"), content);
+                                    zip.remove(path);
+                                })
+                            );
+                        }
+                    });
+                }
             }
 
         } else if (filename.endsWith('.bds')) {
             newFilename = filename.replace('.bds', '.bdi');
-            const resFolder = zip.folder("res");
-
-            if (!resFolder) {
-                throw new Error("res 文件夹不存在。");
-            }
-
             if (isStickerBasePackage) {
                 // 贴纸底包：将根目录下的所有文件和文件夹移动到 skin/
-                resFolder.forEach(function(relativePath, file) {
-                    const newPath = "skin/" + relativePath;
-                    tasks.push(
-                        file.async("uint8array").then(function(content) {
-                            zip.file(newPath, content);
-                            zip.remove("res/" + relativePath);
-                        })
-                    );
+                const rootFiles = Object.keys(contents.files);
+                rootFiles.forEach(function(filePath) {
+                    if (!filePath.startsWith("skin/")) {
+                        const newPath = "skin/" + filePath;
+                        const file = zip.file(filePath);
+                        if (file) {
+                            tasks.push(
+                                file.async("uint8array").then(function(content) {
+                                    zip.file(newPath, content);
+                                    zip.remove(filePath);
+                                })
+                            );
+                        }
+                    }
                 });
             } else {
                 // 普通包：将 res/ 下的所有文件和文件夹移动到 skin/res/
-                resFolder.forEach(function(relativePath, file) {
-                    const newPath = "skin/res/" + relativePath;
-                    tasks.push(
-                        file.async("uint8array").then(function(content) {
-                            zip.file(newPath, content);
-                            zip.remove("res/" + relativePath);
-                        })
-                    );
-                });
-
-                // 修改 Info.txt
-                const infoFile = zip.file("res/Info.txt");
-                if (infoFile) {
-                    tasks.push(
-                        infoFile.async("string").then(function(content) {
-                            content = content.replace("SupportPlatform=I", "SupportPlatform=SWIA");
-                            if (!content.includes("AtomSkinName=light,dark")) {
-                                content += "\nAtomSkinName=light,dark";
-                            }
-                            zip.file("skin/Info.txt", content);
-                            zip.remove("res/Info.txt");
-                        })
-                    );
-                }
-
-                // 修改 abj.til 文件
-                const abjTilPaths = [
-                    "res/light/skin/res/abj.til",
-                    "res/dark/skin/res/abj.til"
-                ];
-                abjTilPaths.forEach(function(path) {
-                    const abjTilFile = zip.file(path);
-                    if (abjTilFile) {
+                const resFolder = zip.folder("res");
+                if (resFolder) {
+                    resFolder.forEach(function(relativePath, file) {
+                        const newPath = "skin/res/" + relativePath;
                         tasks.push(
-                            abjTilFile.async("string").then(function(content) {
-                                content = content.replace(`[IMG1]
+                            file.async("uint8array").then(function(content) {
+                                zip.file(newPath, content);
+                                zip.remove("res/" + relativePath);
+                            })
+                        );
+                    });
+
+                    // 修改 Info.txt
+                    const infoFile = zip.file("res/Info.txt");
+                    if (infoFile) {
+                        tasks.push(
+                            infoFile.async("string").then(function(content) {
+                                content = content.replace("SupportPlatform=I", "SupportPlatform=SWIA");
+                                if (!content.includes("AtomSkinName=light,dark")) {
+                                    content += "\nAtomSkinName=light,dark";
+                                }
+                                zip.file("skin/Info.txt", content);
+                                zip.remove("res/Info.txt");
+                            })
+                        );
+                    }
+
+                    // 修改 abj.til 文件
+                    const abjTilPaths = [
+                        "res/light/skin/res/abj.til",
+                        "res/dark/skin/res/abj.til"
+                    ];
+                    abjTilPaths.forEach(function(path) {
+                        const abjTilFile = zip.file(path);
+                        if (abjTilFile) {
+                            tasks.push(
+                                abjTilFile.async("string").then(function(content) {
+                                    content = content.replace(`[IMG1]
 SOURCE_RECT=0,70,1080,109
 
 [IMG2]
@@ -239,12 +241,13 @@ SOURCE_RECT=0,0,1080,70
 
 [IMG7]
 SOURCE_RECT=0,70,1080,109`);
-                                zip.file(path.replace("res/", "skin/"), content);
-                                zip.remove(path);
-                            })
-                        );
-                    }
-                });
+                                    zip.file(path.replace("res/", "skin/"), content);
+                                    zip.remove(path);
+                                })
+                            );
+                        }
+                    });
+                }
             }
         } else {
             console.error("Unsupported file type:", filename);
