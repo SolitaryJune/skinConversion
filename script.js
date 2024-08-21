@@ -89,24 +89,18 @@ function processFile(filename, arrayBuffer, enableEncryption) {
 
         statusElement.textContent = '生成新的压缩包...';
 
+        // 将 newFilename 传递给 Promise 链的下一个步骤
         if (enableEncryption) {
             return zip.generateAsync({type: "uint8array"}).then(function(data) {
                 return modifyZipFile(data, newFilename);
+            }).then(function(blob) {
+                downloadFile(blob, newFilename);
             });
         } else {
-            return zip.generateAsync({type: "blob"});
+            return zip.generateAsync({type: "blob"}).then(function(blob) {
+                downloadFile(blob, newFilename);
+            });
         }
-    }).then(function(blob) {
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = newFilename;
-        link.textContent = `下载 ${newFilename}`;
-        
-        const outputElement = document.getElementById('output');
-        outputElement.appendChild(link);
-
-        statusElement.textContent = '处理完成!';
-        progressElement.classList.add('hidden');
     }).catch(function(error) {
         console.error("处理文件时出错:", error.message);
         alert("处理文件时出错: " + error.message);
@@ -136,4 +130,20 @@ function modifyZipFile(data, filename) {
             reject(error);
         }
     });
+}
+
+function downloadFile(blob, newFilename) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = newFilename;
+    link.textContent = `下载 ${newFilename}`;
+    
+    const outputElement = document.getElementById('output');
+    outputElement.appendChild(link);
+
+    const statusElement = document.getElementById('status');
+    const progressElement = document.getElementById('progress');
+
+    statusElement.textContent = '处理完成!';
+    progressElement.classList.add('hidden');
 }
