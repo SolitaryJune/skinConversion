@@ -1,25 +1,98 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>皮肤转系统</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>文件上传处理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            color: #444;
+        }
+
+        #fileInput {
+            display: block;
+            margin: 20px auto;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        #uploadButton {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #uploadButton:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #uploadButton:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        #status, #progress {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+        }
+
+        #status.show, #progress.show {
+            display: block;
+        }
+
+        #status {
+            color: #28a745;
+        }
+
+        #progress {
+            color: #ffc107;
+        }
+
+        #output {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        label {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+
+        input[type="checkbox"] {
+            margin-right: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>皮肤转系统（目前适配：林乐妍）</h1>
-    <input type="file" id="fileInput" accept=".bds,.bdi">
-    <label>
-        <input type="checkbox" id="encryptCheckbox"> 启用下载文件加密
-    </label>
-    <label>
-        <input type="checkbox" id="stickerCheckbox"> 贴纸底包
-    </label>
-    <button id="uploadButton" disabled>上传并处理</button>
-    
-    <div id="status" class="hidden">准备中...</div>
-    <div id="progress" class="hidden"></div>
+    <h1>文件上传并处理</h1>
+    <input type="file" id="fileInput">
+    <button id="uploadButton" disabled>处理文件</button>
+    <div id="status">文件状态显示</div>
+    <div id="progress">进度显示</div>
     <div id="output"></div>
+
+    <label><input type="checkbox" id="encryptCheckbox"> 启用加密</label>
+    <label><input type="checkbox" id="stickerBaseCheckbox"> 勾选贴纸底包</label>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
     <script src="script.js"></script>
