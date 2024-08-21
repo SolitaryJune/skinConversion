@@ -19,27 +19,50 @@ document.getElementById('uploadButton').addEventListener('click', function() {
 function processFile(filename, arrayBuffer, enableEncryption) {
     const zip = new JSZip();
     zip.loadAsync(arrayBuffer).then(function(contents) {
-        const cssFile = zip.file("res/default.css");
-        if (!cssFile) {
-            throw new Error("res/default.css 文件不存在。请确保文件路径正确。");
+        let cssFile;
+        let skinFolder = false;
+
+        // 检查是 .bdi 文件还是 .bds 文件
+        if (filename.endsWith('.bdi')) {
+            // .bdi 应该有 skin/res/default.css
+            cssFile = zip.file("skin/res/default.css");
+            skinFolder = true;
+        } else if (filename.endsWith('.bds')) {
+            // .bds 应该有 res/default.css
+            cssFile = zip.file("res/default.css");
         }
-        return cssFile.async("string");
-    }).then(function(cssContent) {
+
+        if (!cssFile) {
+            throw new Error("无法找到 default.css 文件。请确保文件路径正确。");
+        }
+        return cssFile.async("string").then(function(cssContent) {
+            return { cssContent, skinFolder };
+        });
+    }).then(function(data) {
+        let { cssContent, skinFolder } = data;
         let modifiedCss = cssContent;
         let newFilename = '';
 
         if (filename.endsWith('.bds')) {
+            // 修改为 .bdi
             modifiedCss = modifiedCss.replace(/\.ogg/g, '.aiff');
             modifiedCss = modifiedCss.replace(/NM_IMG=abj,1/g, 'NM_IMG=acand,1');
             newFilename = filename.replace('.bds', '.bdi');
+
+            // 添加 skin 文件夹
+            zip.folder("skin").folder("res").file("default.css", modifiedCss);
+            zip.remove("res");  // 删除原来的 res 目录
+
         } else if (filename.endsWith('.bdi')) {
+            // 修改为 .bds
             modifiedCss = modifiedCss.replace(/\.aiff/g, '.ogg');
             modifiedCss = modifiedCss.replace(/NM_IMG=acand,1/g, 'NM_IMG=abj,1');
             newFilename = filename.replace('.bdi', '.bds');
-        }
 
-        // 更新压缩包中的 CSS 文件
-        zip.file("res/default.css", modifiedCss);
+            // 移动文件并删除 skin 文件夹
+            zip.folder("res").file("default.css", modifiedCss);
+            zip.remove("skin");  // 删除 skin 目录
+        }
 
         if (enableEncryption) {
             // 启用伪加密
