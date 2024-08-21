@@ -19,7 +19,11 @@ document.getElementById('uploadButton').addEventListener('click', function() {
 function processFile(filename, arrayBuffer, enableEncryption) {
     const zip = new JSZip();
     zip.loadAsync(arrayBuffer).then(function(contents) {
-        return zip.file("res/default.css").async("string");
+        const cssFile = zip.file("res/default.css");
+        if (!cssFile) {
+            throw new Error("res/default.css 文件不存在。请确保文件路径正确。");
+        }
+        return cssFile.async("string");
     }).then(function(cssContent) {
         let modifiedCss = cssContent;
         let newFilename = '';
@@ -53,7 +57,8 @@ function processFile(filename, arrayBuffer, enableEncryption) {
         link.textContent = `下载 ${newFilename}`;
         document.getElementById('output').appendChild(link);
     }).catch(function(error) {
-        console.error("处理文件时出错:", error);
+        console.error("处理文件时出错:", error.message);
+        alert("处理文件时出错: " + error.message);
     });
 }
 
